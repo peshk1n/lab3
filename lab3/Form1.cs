@@ -6,5 +6,11 @@ namespace lab3
         {
             InitializeComponent();
         }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            TriangleForm form = new TriangleForm();
+            form.ShowDialog();
+        }
     }
 }
