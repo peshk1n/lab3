@@ -35,27 +35,31 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(2, 2);
+            this.button1.Location = new System.Drawing.Point(4, 4);
+            this.button1.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(300, 40);
+            this.button1.Size = new System.Drawing.Size(638, 82);
             this.button1.TabIndex = 0;
             this.button1.Text = "Задание 1";
             this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(2, 42);
+            this.button2.Location = new System.Drawing.Point(4, 86);
+            this.button2.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(300, 40);
+            this.button2.Size = new System.Drawing.Size(638, 82);
             this.button2.TabIndex = 1;
             this.button2.Text = "Задание 2";
             this.button2.UseVisualStyleBackColor = true;
             // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(2, 82);
+            this.button3.Location = new System.Drawing.Point(4, 168);
+            this.button3.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.button3.Name = "button3";
-            this.button3.Size = new System.Drawing.Size(300, 40);
+            this.button3.Size = new System.Drawing.Size(638, 82);
             this.button3.TabIndex = 2;
             this.button3.Text = "Задание 3";
             this.button3.UseVisualStyleBackColor = true;
@@ -63,12 +67,13 @@
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(17F, 41F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(305, 124);
+            this.ClientSize = new System.Drawing.Size(648, 254);
             this.Controls.Add(this.button3);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.button1);
+            this.Margin = new System.Windows.Forms.Padding(6, 6, 6, 6);
             this.Name = "Form1";
             this.Text = "Main Form";
             this.ResumeLayout(false);
