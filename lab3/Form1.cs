@@ -18,5 +18,13 @@ namespace lab3
             Task1 task1 = new Task1();
             task1.ShowDialog();
         }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            FormTask2 task2 = new FormTask2();
+            task2.ShowDialog();
+        }
+
+  
     }
 }
