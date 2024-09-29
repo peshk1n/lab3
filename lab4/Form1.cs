@@ -1,14 +1,19 @@
+using System.Drawing;
+
 namespace lab4
 {
     public partial class Form1 : Form
     {
         private List<List<Point>> polygons = new List<List<Point>>(); 
-        private List<Point> currentPolygon = new List<Point>(); 
+        private int currentPolygon = -1;
+        private bool isSelectingPolygon = false;
+        private Point transformCenter;
 
         public Form1()
         {
             InitializeComponent();
             pictureBox1.BackColor = Color.White;
+            OpenTransformMenu();
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -17,13 +22,65 @@ namespace lab4
 
         private void pictureBox1_MouseClick(object sender, MouseEventArgs e)
         {
-            if (currentPolygon != null)
+            if (e.Button == MouseButtons.Right)
             {
-                currentPolygon.Add(e.Location); 
-                RedrawPolygons(); 
+                transformCenter = e.Location;
+                RedrawPolygons();
+            }
+            else
+            {
+                if (isSelectingPolygon)
+                {
+                    SelectPolygon(e.Location);
+                    isSelectingPolygon = false;
+                }
+                else if (currentPolygon != -1)
+                {
+                    polygons[currentPolygon].Add(e.Location);
+                    transformCenter = GetPolygonCenter(currentPolygon);
+                    RedrawPolygons();
+                }
             }
         }
 
+        // Выделение полигона   ==================================================================
+        private void selectButton_Click(object sender, EventArgs e)
+        {
+            isSelectingPolygon = true;
+        }
+
+
+        private void SelectPolygon(Point clickPoint)
+        {
+            for (int i = 0; i < polygons.Count; i++)
+            {
+                if (IsPointInPolygon(clickPoint, polygons[i]))
+                {
+                    currentPolygon = i;
+                    transformCenter = GetPolygonCenter(i);
+                    RedrawPolygons();
+                    return;
+                }
+            }
+        }
+
+        private bool IsPointInPolygon(Point point, List<Point> polygon)
+        {
+            int i, j = polygon.Count - 1;
+            bool inside = false;
+
+            for (i = 0; i < polygon.Count; j = i++)
+            {
+                if (((polygon[i].Y > point.Y) != (polygon[j].Y > point.Y)) &&
+                    (point.X < (polygon[j].X - polygon[i].X) * (point.Y - polygon[i].Y) / (polygon[j].Y - polygon[i].Y) + polygon[i].X))
+                {
+                    inside = !inside;
+                }
+            }
+            return inside;
+        }
+
+        // Создание полигонов через клики мышью ==================================================
         private void RedrawPolygons()
         {
             if (pictureBox1.Image == null)
@@ -33,37 +90,43 @@ namespace lab4
 
             using (Graphics g = Graphics.FromImage(pictureBox1.Image))
             {
-                g.Clear(Color.White); 
+                g.Clear(Color.White);
+                var pen = Pens.Black;
+                var brush = Brushes.Black;
 
-                foreach (var polygon in polygons)
+                for (int i = 0; i < polygons.Count; i++)
                 {
+                    if(i == currentPolygon)
+                    {
+                        pen = Pens.Red;
+                        brush = Brushes.Red;
+                    }
+                    else
+                    {
+                        pen = Pens.Black;
+                        brush = Brushes.Black;
+                    }
+
+                    var polygon = polygons[i];
+
                     if (polygon.Count > 1)
                     {
-                        for (int i = 1; i < polygon.Count; i++)
+                        for (int j = 1; j < polygon.Count; ++j)
                         {
-                            g.DrawLine(Pens.Black, polygon[i - 1], polygon[i]); 
+                            g.DrawLine(pen, polygon[j - 1], polygon[j]); 
                         }
-                        g.DrawLine(Pens.Black, polygon[polygon.Count - 1], polygon[0]); 
+                        g.DrawLine(pen, polygon[polygon.Count - 1], polygon[0]); 
                     }
 
                     foreach (Point p in polygon)
                     {
-                        g.FillEllipse(Brushes.Black, p.X - 3, p.Y - 3, 6, 6); 
+                        g.FillEllipse(brush, p.X - 3, p.Y - 3, 6, 6); 
                     }
                 }
 
-                if (currentPolygon.Count > 1)
+                if (currentPolygon != -1 && polygons[currentPolygon].Count > 0)
                 {
-                    for (int i = 1; i < currentPolygon.Count; i++)
-                    {
-                        g.DrawLine(Pens.Black, currentPolygon[i - 1], currentPolygon[i]); 
-                    }
-                    g.DrawLine(Pens.Black, currentPolygon[currentPolygon.Count - 1], currentPolygon[0]); 
-                }
-
-                foreach (Point p in currentPolygon)
-                {
-                    g.FillEllipse(Brushes.Black, p.X - 3, p.Y - 3, 6, 6); 
+                    g.FillEllipse(Brushes.Orange, transformCenter.X - 3, transformCenter.Y - 3, 6, 6);
                 }
             }
 
@@ -72,17 +135,16 @@ namespace lab4
 
         private void draw_polygon_Click(object sender, EventArgs e)
         {
-            if (currentPolygon.Count > 0)
-            {
-                polygons.Add(new List<Point>(currentPolygon)); 
-                currentPolygon.Clear(); 
-            }
+            polygons.Add(new List<Point>());
+            currentPolygon = polygons.Count-1;
+            RedrawPolygons();
         }
 
+        // Очистка сцены    =====================================================================
         private void clear_Click(object sender, EventArgs e)
         {
             polygons.Clear(); 
-            currentPolygon.Clear(); 
+            currentPolygon = -1; 
             if (pictureBox1.Image != null)
             {
                 using (Graphics g = Graphics.FromImage(pictureBox1.Image))
@@ -94,6 +156,228 @@ namespace lab4
             }
         }
 
-        
+
+        // Выполнение преобразований    =========================================================
+        private void OpenTransformMenu()
+        {
+            this.Width += 225;
+
+            Label lblOffset = new Label { Text = "Смещение", Location = new Point(this.ClientSize.Width - 220, 20) };
+            Label lblRotation = new Label { Text = "Поворот", Location = new Point(this.ClientSize.Width - 220, 60) };
+            Label lblScale = new Label { Text = "Масштаб", Location = new Point(this.ClientSize.Width - 220, 100) };
+
+            TextBox txtOffsetX = new TextBox { Text = "0", Location = new Point(this.ClientSize.Width - 120, 20), Width = 50 };
+            TextBox txtOffsetY = new TextBox { Text = "0", Location = new Point(this.ClientSize.Width - 60, 20), Width = 50 };
+
+            TextBox txtRotation = new TextBox { Text = "0", Location = new Point(this.ClientSize.Width - 120, 60), Width = 110 };
+
+            TextBox txtScaleX = new TextBox { Text = "1", Location = new Point(this.ClientSize.Width - 120, 100), Width = 50 };
+            TextBox txtScaleY = new TextBox { Text = "1", Location = new Point(this.ClientSize.Width - 60, 100), Width = 50 };
+
+            txtOffsetX.KeyPress += (sender, e) =>
+            {
+                if (e.KeyChar == (char)Keys.Enter)
+                {
+                    if (int.TryParse(txtOffsetX.Text, out int dx) && int.TryParse(txtOffsetY.Text, out int dy))
+                    {
+                        ApplyTranslation(dx, dy);
+                    }
+                }
+            };
+
+            txtOffsetY.KeyPress += (sender, e) =>
+            {
+                if (e.KeyChar == (char)Keys.Enter)
+                {
+                    if (int.TryParse(txtOffsetX.Text, out int dx) && int.TryParse(txtOffsetY.Text, out int dy))
+                    {
+                        ApplyTranslation(dx, dy);
+                    }
+                }
+            };
+
+            txtRotation.KeyPress += (sender, e) =>
+            {
+                if (e.KeyChar == (char)Keys.Enter)
+                {
+                    if (double.TryParse(txtRotation.Text, out double angle))
+                    {
+                        ApplyRotation(angle);
+                    }
+                }
+            };
+
+            txtScaleX.KeyPress += (sender, e) =>
+            {
+                if (e.KeyChar == (char)Keys.Enter)
+                {
+                    if (double.TryParse(txtScaleX.Text, out double scaleFactorX) && double.TryParse(txtScaleY.Text, out double scaleFactorY))
+                    {
+                        ApplyScaling(scaleFactorX, scaleFactorY);
+                    }
+                }
+            };
+
+            txtScaleY.KeyPress += (sender, e) =>
+            {
+                if (e.KeyChar == (char)Keys.Enter)
+                {
+                    if (double.TryParse(txtScaleX.Text, out double scaleFactorX) && double.TryParse(txtScaleY.Text, out double scaleFactorY))
+                    {
+                        ApplyScaling(scaleFactorX, scaleFactorY);
+                    }
+                }
+            };
+
+            this.Controls.Add(lblOffset);
+            this.Controls.Add(txtOffsetX);
+            this.Controls.Add(txtOffsetY);
+
+            this.Controls.Add(lblRotation);
+            this.Controls.Add(txtRotation);
+
+            this.Controls.Add(lblScale);
+            this.Controls.Add(txtScaleX);
+            this.Controls.Add(txtScaleY);
+        }
+
+        private void ApplyTranslation(int dx, int dy)
+        {
+            var matrix = TransformationMatrix.CreateTranslationMatrix(dx, dy);
+            if(TransformCurrentPolygon(matrix))
+                transformCenter = matrix.Transform(transformCenter);
+        }
+
+        private void ApplyRotation(double angle)
+        {
+            var matrix = TransformationMatrix.CreateRotationMatrix(angle, transformCenter);
+            TransformCurrentPolygon(matrix);
+        }
+
+        private void ApplyScaling(double scaleX, double scaleY)
+        {
+            var matrix = TransformationMatrix.CreateScalingMatrix(scaleX, scaleY);
+            TransformCurrentPolygon(matrix);
+            transformCenter = GetPolygonCenter(currentPolygon);
+        }
+
+        private bool TransformCurrentPolygon(TransformationMatrix transformationMatrix)
+        {
+            if (currentPolygon != -1 && polygons[currentPolygon].Count > 0)
+            {
+                var polygon = polygons[currentPolygon];
+                for (int i = 0; i < polygon.Count; i++)
+                {
+                    polygon[i] = transformationMatrix.Transform(polygon[i]);
+                }
+                RedrawPolygons();
+                return true;
+            }
+            return false;
+        }
+
+        private Point GetPolygonCenter(int polygonIndex)
+        {
+            var polygon = polygons[polygonIndex];
+            int sumX = 0, sumY = 0;
+            foreach (var point in polygon)
+            {
+                sumX += point.X;
+                sumY += point.Y;
+            }
+            return new Point(sumX / polygon.Count, sumY / polygon.Count);
+        }
     }
+
+
+    public class TransformationMatrix
+    {
+        public double[,] matrix = new double[3, 3];
+
+        public TransformationMatrix()
+        {
+            matrix[0, 0] = 1;
+            matrix[1, 1] = 1;
+            matrix[2, 2] = 1;
+        }
+
+
+        public Point Transform(Point p)
+        {
+            double x = matrix[0, 0] * p.X + matrix[0, 1] * p.Y + matrix[0, 2];
+            double y = matrix[1, 0] * p.X + matrix[1, 1] * p.Y + matrix[1, 2];
+            return new Point((int)x, (int)y);
+        }
+
+
+        public static TransformationMatrix Multiply(TransformationMatrix a, TransformationMatrix b)
+        {
+            TransformationMatrix result = new TransformationMatrix();
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    result.matrix[i, j] = 0;
+                    for (int k = 0; k < 3; k++)
+                    {
+                        result.matrix[i, j] += a.matrix[i, k] * b.matrix[k, j];
+                    }
+                }
+            }
+            return result;
+        }
+
+
+        public static TransformationMatrix CreateTranslationMatrix(double dx, double dy)
+        {
+            TransformationMatrix result = new TransformationMatrix();
+            result.matrix[0, 2] = dx;
+            result.matrix[1, 2] = dy;
+            return result;
+        }
+
+        
+        public static TransformationMatrix CreateRotationMatrix(double angle)
+        {
+            double radians = angle * Math.PI / 180;
+            TransformationMatrix result = new TransformationMatrix();
+            double cos = Math.Cos(radians);
+            double sin = Math.Sin(radians);
+            result.matrix[0, 0] = cos;
+            result.matrix[0, 1] = -sin;
+            result.matrix[1, 0] = sin;
+            result.matrix[1, 1] = cos;
+            return result;
+        }
+
+       
+        public static TransformationMatrix CreateRotationMatrix(double angle, Point center)
+        {
+            var translateToOrigin = CreateTranslationMatrix(-center.X, -center.Y);
+            var rotationMatrix = CreateRotationMatrix(angle);
+            var translateBack = CreateTranslationMatrix(center.X, center.Y);
+
+            return Multiply(translateBack, Multiply(rotationMatrix, translateToOrigin));
+        }
+
+
+        public static TransformationMatrix CreateScalingMatrix(double scaleX, double scaleY)
+        {
+            TransformationMatrix result = new TransformationMatrix();
+            result.matrix[0, 0] = scaleX;
+            result.matrix[1, 1] = scaleY;
+            return result;
+        }
+
+      
+        public static TransformationMatrix CreateScalingMatrix(double scaleX, double scaleY, Point center)
+        {
+            var translateToOrigin = CreateTranslationMatrix(-center.X, -center.Y);
+            var scalingMatrix = CreateScalingMatrix(scaleX, scaleY);
+            var translateBack = CreateTranslationMatrix(center.X, center.Y);
+
+            return Multiply(translateBack, Multiply(scalingMatrix, translateToOrigin));
+        }
+    }
+
 }
