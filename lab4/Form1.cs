@@ -4,10 +4,10 @@ namespace lab4
 {
     public partial class Form1 : Form
     {
-        private List<List<Point>> polygons = new List<List<Point>>(); 
+        private List<List<PointF>> polygons = new List<List<PointF>>();
         private int currentPolygon = -1;
         private bool isSelectingPolygon = false;
-        private Point transformCenter;
+        private PointF transformCenter;
 
         public Form1()
         {
@@ -39,11 +39,17 @@ namespace lab4
                     polygons[currentPolygon].Add(e.Location);
                     transformCenter = GetPolygonCenter(currentPolygon);
                     RedrawPolygons();
+                    if(polygons[currentPolygon].Count >= 2)
+                    {
+                        int c = polygons[currentPolygon].Count;
+                        DrawIntersection(polygons[currentPolygon][c - 2], polygons[currentPolygon][c - 1]);
+                    }
                 }
             }
         }
 
-        // Выделение полигона   ==================================================================
+        // Выделение полигона  
+        // ==========================================================================================
         private void selectButton_Click(object sender, EventArgs e)
         {
             isSelectingPolygon = true;
@@ -64,7 +70,7 @@ namespace lab4
             }
         }
 
-        private bool IsPointInPolygon(Point point, List<Point> polygon)
+        private bool IsPointInPolygon(PointF point, List<PointF> polygon)
         {
             int i, j = polygon.Count - 1;
             bool inside = false;
@@ -80,12 +86,13 @@ namespace lab4
             return inside;
         }
 
-        // Создание полигонов через клики мышью ==================================================
+        // Создание полигонов через клики мышью 
+        // ==========================================================================================
         private void RedrawPolygons()
         {
             if (pictureBox1.Image == null)
             {
-                pictureBox1.Image = new Bitmap(pictureBox1.Width, pictureBox1.Height); 
+                pictureBox1.Image = new Bitmap(pictureBox1.Width, pictureBox1.Height);
             }
 
             using (Graphics g = Graphics.FromImage(pictureBox1.Image))
@@ -96,7 +103,7 @@ namespace lab4
 
                 for (int i = 0; i < polygons.Count; i++)
                 {
-                    if(i == currentPolygon)
+                    if (i == currentPolygon)
                     {
                         pen = Pens.Red;
                         brush = Brushes.Red;
@@ -113,14 +120,14 @@ namespace lab4
                     {
                         for (int j = 1; j < polygon.Count; ++j)
                         {
-                            g.DrawLine(pen, polygon[j - 1], polygon[j]); 
+                            g.DrawLine(pen, polygon[j - 1], polygon[j]);
                         }
-                        g.DrawLine(pen, polygon[polygon.Count - 1], polygon[0]); 
+                        g.DrawLine(pen, polygon[polygon.Count - 1], polygon[0]);
                     }
 
-                    foreach (Point p in polygon)
+                    foreach (PointF p in polygon)
                     {
-                        g.FillEllipse(brush, p.X - 3, p.Y - 3, 6, 6); 
+                        g.FillEllipse(brush, p.X - 3, p.Y - 3, 6, 6);
                     }
                 }
 
@@ -130,34 +137,35 @@ namespace lab4
                 }
             }
 
-            pictureBox1.Invalidate(); 
+            pictureBox1.Invalidate();
         }
 
         private void draw_polygon_Click(object sender, EventArgs e)
         {
-            polygons.Add(new List<Point>());
-            currentPolygon = polygons.Count-1;
+            polygons.Add(new List<PointF>());
+            currentPolygon = polygons.Count - 1;
             RedrawPolygons();
         }
 
-        // Очистка сцены    =====================================================================
+        // Очистка сцены
+        // ==========================================================================================
         private void clear_Click(object sender, EventArgs e)
         {
-            polygons.Clear(); 
-            currentPolygon = -1; 
+            polygons.Clear();
+            currentPolygon = -1;
             if (pictureBox1.Image != null)
             {
                 using (Graphics g = Graphics.FromImage(pictureBox1.Image))
                 {
-                    g.Clear(Color.White); 
+                    g.Clear(Color.White);
                 }
 
-                pictureBox1.Invalidate(); 
+                pictureBox1.Invalidate();
             }
         }
 
-
-        // Выполнение преобразований    =========================================================
+        // Применение аффинных преобразований 
+        // ==========================================================================================
         private void OpenTransformMenu()
         {
             this.Width += 225;
@@ -244,7 +252,7 @@ namespace lab4
         private void ApplyTranslation(int dx, int dy)
         {
             var matrix = TransformationMatrix.CreateTranslationMatrix(dx, dy);
-            if(TransformCurrentPolygon(matrix))
+            if (TransformCurrentPolygon(matrix))
                 transformCenter = matrix.Transform(transformCenter);
         }
 
@@ -256,9 +264,8 @@ namespace lab4
 
         private void ApplyScaling(double scaleX, double scaleY)
         {
-            var matrix = TransformationMatrix.CreateScalingMatrix(scaleX, scaleY);
+            var matrix = TransformationMatrix.CreateScalingMatrix(scaleX, scaleY, transformCenter);
             TransformCurrentPolygon(matrix);
-            transformCenter = GetPolygonCenter(currentPolygon);
         }
 
         private bool TransformCurrentPolygon(TransformationMatrix transformationMatrix)
@@ -276,20 +283,90 @@ namespace lab4
             return false;
         }
 
-        private Point GetPolygonCenter(int polygonIndex)
+        private PointF GetPolygonCenter(int polygonIndex)
         {
             var polygon = polygons[polygonIndex];
-            int sumX = 0, sumY = 0;
+            float sumX = 0, sumY = 0;
             foreach (var point in polygon)
             {
                 sumX += point.X;
                 sumY += point.Y;
             }
-            return new Point(sumX / polygon.Count, sumY / polygon.Count);
+            return new PointF(sumX / polygon.Count, sumY / polygon.Count);
+        }
+
+        // Поиск точки пересечения двух ребер
+        // ==========================================================================================
+        public static PointF? FindIntersection(PointF A, PointF B, PointF C, PointF D)
+        {
+            float dxAB = B.X - A.X;
+            float dyAB = B.Y - A.Y;
+            float dxCD = D.X - C.X;
+            float dyCD = D.Y - C.Y;
+
+            float nX = -dyCD;
+            float nY = dxCD;
+
+            float dxAC = A.X - C.X;
+            float dyAC = A.Y - C.Y;
+            float numerator = nX * dxAC + nY * dyAC;
+            float denominator = nX * dxAB + nY * dyAB;
+
+            if (denominator == 0)
+            {
+                return null; 
+            }
+
+            float t = -numerator / denominator;
+
+            if (t < 0 || t > 1)
+            {
+                return null; 
+            }
+
+            float intersectionX = A.X + t * dxAB;
+            float intersectionY = A.Y + t * dyAB;
+
+            float dxIntersectC = intersectionX - C.X;
+            float dyIntersectC = intersectionY - C.Y;
+
+            float dotProduct = dxIntersectC * dxCD + dyIntersectC * dyCD;
+            float lengthCD = dxCD * dxCD + dyCD * dyCD;
+
+            if (dotProduct >= 0 && dotProduct <= lengthCD)
+            {
+                return new PointF(intersectionX, intersectionY);
+            }
+
+            return null; 
+        }
+
+
+        public void DrawIntersection(PointF x, PointF y)
+        {
+            for(int p = 0; p < polygons.Count; ++p){
+                if (p == currentPolygon)
+                    continue;
+                for(int i = 0; i < polygons[p].Count; ++i)
+                {
+                    PointF? intersection = FindIntersection(polygons[p][i], polygons[p][(i + 1) % polygons[p].Count], x, y);
+                    if (intersection != null)
+                    {
+                        using (Graphics g = Graphics.FromImage(pictureBox1.Image))
+                        {
+                            g.FillEllipse(Brushes.Orchid, intersection.Value.X - 4, intersection.Value.Y - 4, 8, 8);
+                        }
+                    }
+                }
+            }
+
+            this.Invalidate();
         }
     }
 
 
+    // Класс для матрицы афинных преобразований
+    // ==========================================================================================
     public class TransformationMatrix
     {
         public double[,] matrix = new double[3, 3];
@@ -302,11 +379,11 @@ namespace lab4
         }
 
 
-        public Point Transform(Point p)
+        public PointF Transform(PointF p)
         {
-            double x = matrix[0, 0] * p.X + matrix[0, 1] * p.Y + matrix[0, 2];
-            double y = matrix[1, 0] * p.X + matrix[1, 1] * p.Y + matrix[1, 2];
-            return new Point((int)x, (int)y);
+            double x = matrix[0, 0] * p.X + matrix[1, 0] * p.Y + matrix[2, 0];
+            double y = matrix[0, 1] * p.X + matrix[1, 1] * p.Y + matrix[2, 1];
+            return new PointF((float)x, (float)y);
         }
 
 
@@ -327,16 +404,15 @@ namespace lab4
             return result;
         }
 
-
         public static TransformationMatrix CreateTranslationMatrix(double dx, double dy)
         {
             TransformationMatrix result = new TransformationMatrix();
-            result.matrix[0, 2] = dx;
-            result.matrix[1, 2] = dy;
+            result.matrix[2, 0] = dx;
+            result.matrix[2, 1] = dy;
             return result;
         }
 
-        
+
         public static TransformationMatrix CreateRotationMatrix(double angle)
         {
             double radians = angle * Math.PI / 180;
@@ -344,20 +420,20 @@ namespace lab4
             double cos = Math.Cos(radians);
             double sin = Math.Sin(radians);
             result.matrix[0, 0] = cos;
-            result.matrix[0, 1] = -sin;
-            result.matrix[1, 0] = sin;
+            result.matrix[0, 1] = sin;
+            result.matrix[1, 0] = -sin;
             result.matrix[1, 1] = cos;
             return result;
         }
 
-       
-        public static TransformationMatrix CreateRotationMatrix(double angle, Point center)
+
+        public static TransformationMatrix CreateRotationMatrix(double angle, PointF center)
         {
             var translateToOrigin = CreateTranslationMatrix(-center.X, -center.Y);
             var rotationMatrix = CreateRotationMatrix(angle);
             var translateBack = CreateTranslationMatrix(center.X, center.Y);
 
-            return Multiply(translateBack, Multiply(rotationMatrix, translateToOrigin));
+            return Multiply(Multiply(translateToOrigin, rotationMatrix), translateBack);
         }
 
 
@@ -369,15 +445,14 @@ namespace lab4
             return result;
         }
 
-      
-        public static TransformationMatrix CreateScalingMatrix(double scaleX, double scaleY, Point center)
+
+        public static TransformationMatrix CreateScalingMatrix(double scaleX, double scaleY, PointF center)
         {
             var translateToOrigin = CreateTranslationMatrix(-center.X, -center.Y);
             var scalingMatrix = CreateScalingMatrix(scaleX, scaleY);
             var translateBack = CreateTranslationMatrix(center.X, center.Y);
 
-            return Multiply(translateBack, Multiply(scalingMatrix, translateToOrigin));
+            return Multiply(Multiply(translateToOrigin, scalingMatrix), translateBack);
         }
     }
-
 }
